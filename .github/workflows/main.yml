@@ -27,10 +27,20 @@ jobs:
           channel: 'stable'
           cache: true
 
-      - name: ⚙️ Bypass Gradle Version Validation
+      - name: ⚙️ Otomatis Buat Gradle Wrapper & Bypass
         run: |
-          mkdir -p android
+          mkdir -p android/gradle/wrapper
+          cat << 'EOF' > android/gradle/wrapper/gradle-wrapper.properties
+          distributionBase=GRADLE_USER_HOME
+          distributionPath=wrapper/dists
+          distributionUrl=https\://services.gradle.org/distributions/gradle-8.10.2-all.zip
+          zipStoreBase=GRADLE_USER_HOME
+          zipStorePath=wrapper/dists
+          EOF
           echo "android.skipBuildDependencyValidation=true" >> android/gradle.properties
+          if [ -f android/settings.gradle ]; then
+            sed -i 's/8.3.2/8.5.2/g' android/settings.gradle
+          fi
 
       - name: 📦 Download Flutter Dependencies
         run: flutter pub get
