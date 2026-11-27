@@ -4,10 +4,12 @@ name: Build Android APK
 on:
   push:
     branches: ["main"]
+    tags:
+      - "v*"
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build-apk:
@@ -20,70 +22,33 @@ jobs:
       - name: Setup Java 17
         uses: actions/setup-java@v4
         with:
-          distribution: temurin
-          java-version: '17'
+          distribution: "temurin"
+          java-version: "17"
 
-      - name: Setup Flutter 3.29.3
+      - name: Setup Flutter (Stable)
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.29.3'
-          channel: stable
+          channel: "stable"
           cache: true
 
-      - name: Siapkan Gradle Wrapper
-        run: |
-          flutter create \
-            --platforms=android \
-            --project-name chempedia \
-            --org com.chempedia \
-            /tmp/chempedia_wrapper
-
-          mkdir -p android/gradle/wrapper
-
-          cp /tmp/chempedia_wrapper/android/gradlew android/
-          cp /tmp/chempedia_wrapper/android/gradlew.bat android/
-
-          cp /tmp/chempedia_wrapper/android/gradle/wrapper/gradle-wrapper.jar \
-            android/gradle/wrapper/
-
-          cp /tmp/chempedia_wrapper/android/gradle/wrapper/gradle-wrapper.properties \
-            android/gradle/wrapper/
-
-          cat > android/gradle/wrapper/gradle-wrapper.properties <<'EOF'
-          distributionBase=GRADLE_USER_HOME
-          distributionPath=wrapper/dists
-          distributionUrl=https\://services.gradle.org/distributions/gradle-8.7-all.zip
-          zipStoreBase=GRADLE_USER_HOME
-          zipStorePath=wrapper/dists
-          EOF
-
-          chmod +x android/gradlew
-
-      - name: Konfigurasi Android
-        run: |
-          FLUTTER_ROOT="$(dirname "$(dirname "$(readlink -f "$(which flutter)")")")"
-
-          echo "flutter.sdk=$FLUTTER_ROOT" > android/local.properties
-          echo "sdk.dir=$ANDROID_HOME" >> android/local.properties
-
-      - name: Install Dependensi
+      - name: Install Dependensi Flutter
         run: flutter pub get
 
-      - name: Periksa Versi Flutter dan Gradle
-        run: |
-          flutter --version
-          cd android
-          ./gradlew --version
-
-      - name: Build APK Release
+      - name: Build APK (Release)
         run: |
           flutter build apk --release \
-            --dart-define=SUPABASE_URL="${{ secrets.SUPABASE_URL }}" \
-            --dart-define=SUPABASE_ANON_KEY="${{ secrets.SUPABASE_ANON_KEY }}"
+            --dart-define=SUPABASE_URL=${{ secrets.SUPABASE_URL }} \
+            --dart-define=SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}
 
-      - name: Upload APK Artifact
+      - name: Upload APK sebagai Artifact
         uses: actions/upload-artifact@v4
         with:
           name: aplikasi-android-apk
           path: build/app/outputs/flutter-apk/app-release.apk
-          retention-days: 14
+
+      - name: Buat GitHub Release Otomatis (Saat Push Tag v*)
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: build/app/outputs/flutter-apk/app-release.apk
