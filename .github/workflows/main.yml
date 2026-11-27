@@ -32,22 +32,11 @@ jobs:
       - name: Install Dependensi Flutter
         run: flutter pub get
 
-      - name: Konfigurasi Android Local Properties
+      - name: Konfigurasi Android
         run: |
           FLUTTER_ROOT="$(dirname "$(dirname "$(readlink -f "$(which flutter)")")")"
-
           echo "flutter.sdk=$FLUTTER_ROOT" > android/local.properties
           echo "sdk.dir=$ANDROID_HOME" >> android/local.properties
-
-      - name: Generate Gradle Wrapper Jika Belum Ada
-        run: |
-          cd android
-
-          if [ ! -f gradlew ]; then
-            gradle wrapper --gradle-version 8.10.2
-          fi
-
-          chmod +x gradlew
 
       - name: Build APK Release
         run: |
