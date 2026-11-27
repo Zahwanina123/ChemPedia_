@@ -1,17 +1,20 @@
-name: Build Android APK (ChemPedia)
+name: Build Android APK
 
 on:
   push:
-    branches: [ "main", "master" ]
+    branches: [ "main" ]
+  tags:
+    - "v*"
   workflow_dispatch:
 
-jobs:
-  build:
-    name: Build Release APK
-    runs-on: ubuntu-latest
+permissions:
+  contents: write
 
+jobs:
+  build-apk:
+    runs-on: ubuntu-latest
     steps:
-      - name: 📥 Checkout Repository
+      - name: 📥 Checkout Kode Sumber
         uses: actions/checkout@v4
 
       - name: ☕ Setup Java 17
@@ -27,33 +30,31 @@ jobs:
           channel: 'stable'
           cache: true
 
-      - name: ⚙️ Otomatis Buat Gradle Wrapper & Bypass
+      - name: 🛠️ Generate Gradle Wrapper & Konfigurasi Build
         run: |
-          mkdir -p android/gradle/wrapper
-          cat << 'EOF' > android/gradle/wrapper/gradle-wrapper.properties
-          distributionBase=GRADLE_USER_HOME
-          distributionPath=wrapper/dists
-          distributionUrl=https\://services.gradle.org/distributions/gradle-8.10.2-all.zip
-          zipStoreBase=GRADLE_USER_HOME
-          zipStorePath=wrapper/dists
-          EOF
-          echo "android.skipBuildDependencyValidation=true" >> android/gradle.properties
-          if [ -f android/settings.gradle ]; then
-            sed -i 's/8.3.2/8.5.2/g' android/settings.gradle
+          cd android
+          gradle wrapper --gradle-version 8.10.2
+          chmod +x gradlew
+          echo "android.skipBuildDependencyValidation=true" >> gradle.properties
+          echo "org.gradle.jvmargs=-Xmx4096m -XX:MaxMetaspaceSize=1024m" >> gradle.properties
+          if [ -f settings.gradle ]; then
+            sed -i 's/8.3.2/8.5.2/g' settings.gradle
           fi
+          cd ..
 
-      - name: 📦 Download Flutter Dependencies
+      - name: 📦 Install Dependensi Flutter
         run: flutter pub get
 
-      - name: 🔨 Build Android Release APK
+      - name: 🔨 Build APK (Release)
         run: |
           flutter build apk --release \
+            --android-skip-build-dependency-validation \
             --dart-define=SUPABASE_URL="${{ secrets.SUPABASE_URL }}" \
             --dart-define=SUPABASE_ANON_KEY="${{ secrets.SUPABASE_ANON_KEY }}"
 
-      - name: 🚀 Upload APK Artifact
+      - name: 🚀 Upload APK sebagai Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ChemPedia-Release-APK
-          path: build/app/outputs/flutter-apk/app-release.apk
+          name: aplikasi-android-apk
+          path: build/app/outputs/**/app-release.apk
           retention-days: 14
